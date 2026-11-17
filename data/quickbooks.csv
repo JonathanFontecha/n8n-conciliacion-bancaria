@@ -1,0 +1,41 @@
+Date,Transaction Type,Num,Name,Memo,Amount
+10/01/2026,Deposit,,Familia Rivera,Anticipo 40% remodelación de cocina,"8,400.00"
+10/01/2026,Check,1041,Inmobiliaria Sol Ficticia,Arriendo bodega octubre,"-2,300.00"
+10/02/2026,Transfer,,,Traslado a cuenta de ahorros,"-5,000.00"
+10/02/2026,Expense,,Combustibles Ruta 9,Combustible camionetas,-186.40
+10/03/2026,Check,1042,Concretos Andinos,Concreto premezclado obra Los Pinos,"-6,750.00"
+10/03/2026,Check,1043,Alquiler de Equipos Delta,Alquiler mezcladora y andamios,"-1,180.00"
+10/04/2026,Expense,,Restaurante El Fogón Demo,Almuerzo cuadrilla obra Los Pinos,-86.50
+10/05/2026,Payment,,Oficinas Mirador,Pago factura 2031,"12,500.00"
+10/06/2026,Bill Payment (Check),1044,Ferretería La Escuadra,Pago factura FE-8812,"-2,315.60"
+10/07/2026,Expense,,Seguros Ficticios S.A.,Póliza responsabilidad civil octubre,-742.18
+10/08/2026,Deposit,,Residencial Los Pinos,Avance de obra #2,"4,650.00"
+10/08/2026,Expense,,Software Contable Nube Demo,Suscripción mensual,-65.00
+10/09/2026,Expense,,Combustibles Ruta 9,Combustible camionetas,-203.15
+10/10/2026,Bill Payment (Check),1045,Asesoría Contable y Tributaria Demo,Honorarios septiembre,-650.00
+10/11/2026,Expense,,Herramientas El Martillo,Taladro percutor y brocas,-389.99
+10/13/2026,Expense,,Ferretería La Escuadra,Tornillería y anclajes,-428.90
+10/13/2026,Expense,,Ferretería La Escuadra,Tornillería y anclajes,-428.90
+10/13/2026,Payment,,Local Comercial Avenida 5,Pago factura 2036,"5,500.00"
+10/14/2026,Check,1046,Electricidad Volta,Subcontrato instalación eléctrica - anticipo,"-3,200.00"
+10/15/2026,Bill Payment (Check),,Maderas del Valle Demo,Pago por transferencia factura MV-450,"-7,820.00"
+10/15/2026,Journal Entry,JE-118,,Nómina quincenal 1-15 oct,"-9,840.00"
+10/16/2026,Transfer,,,Traslado a cuenta de ahorros,"-5,000.00"
+10/17/2026,Payment,,Familia Rivera,Pago factura 2035 - avance 40%,"8,400.00"
+10/18/2026,Expense,,Combustibles Ruta 9,Combustible camionetas,-212.80
+10/19/2026,Check,1047,Concretos Andinos,Bloques y mortero,"-1,372.00"
+10/20/2026,Expense,,Taller Mecánico San Jorge Demo,Mantenimiento camioneta 02,-535.60
+10/21/2026,Expense,,Suministros de Oficina Punto Fijo,Papelería y tóner,-90.00
+10/22/2026,Deposit,,Oficinas Mirador,Pago factura 2038,"6,275.00"
+10/22/2026,Expense,,Recolección de Escombros Limpio,Retiro de escombros obra Mirador,-450.00
+10/23/2026,Check,1048,Alquiler de Equipos Delta,Alquiler retroexcavadora 3 días,"-2,640.00"
+10/24/2026,Expense,,Telefonía Móvil Conecta,Plan celulares cuadrilla,-310.54
+10/25/2026,Expense,,Agua y Energía Municipal Demo,Servicios públicos bodega,-268.33
+10/26/2026,Expense,,Combustibles Ruta 9,Combustible camionetas,-221.30
+10/27/2026,Bill Payment (Check),1049,Ferretería La Escuadra,Pago factura FE-8890,"-1,964.25"
+10/28/2026,Payment,,Residencial Los Pinos,Avance de obra #3,"9,800.00"
+10/29/2026,Deposit,,Alquiler de Equipos Delta,Reembolso depósito de garantía,500.00
+10/29/2026,Check,1050,Pinturas Arcoíris,Pintura exterior obra Mirador,"-1,875.00"
+10/30/2026,Check,1051,Electricidad Volta,Materiales eléctricos,-640.00
+10/30/2026,Journal Entry,JE-121,,Nómina quincenal 16-31 oct,"-9,915.00"
+10/31/2026,Deposit,,Local Comercial Avenida 5,Anticipo adecuación del local,"3,150.00"

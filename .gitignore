@@ -1,0 +1,8 @@
+# n8n instalado localmente y su base de datos de esta máquina
+node_modules/
+.n8n/
+.cache/
+.npm-install*.log
+
+# Volcado completo de la última ejecución (trae rutas de esta máquina)
+output/ultima_ejecucion.log

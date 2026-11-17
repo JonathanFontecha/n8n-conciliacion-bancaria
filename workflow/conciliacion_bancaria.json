@@ -1,0 +1,367 @@
+{
+  "id": "ConciliacionDemo",
+  "name": "Conciliación bancaria automática (demo)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "5c0a1d2e-0000-4000-8000-000000000001",
+      "name": "Inicio manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "5c0a1d2e-0000-4000-8000-000000000002",
+      "name": "Parámetros",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5c0a1d2e-0000-4000-8000-000000000101",
+              "name": "carpeta",
+              "value": ".",
+              "type": "string"
+            },
+            {
+              "id": "5c0a1d2e-0000-4000-8000-000000000102",
+              "name": "empresa",
+              "value": "Ejemplo Construcciones LLC",
+              "type": "string"
+            },
+            {
+              "id": "5c0a1d2e-0000-4000-8000-000000000103",
+              "name": "cuenta",
+              "value": "Cuenta corriente terminada en 2207 · Banco Ficticio",
+              "type": "string"
+            },
+            {
+              "id": "5c0a1d2e-0000-4000-8000-000000000104",
+              "name": "periodo",
+              "value": "Octubre 2026",
+              "type": "string"
+            },
+            {
+              "id": "5c0a1d2e-0000-4000-8000-000000000105",
+              "name": "fecha_corte",
+              "value": "2026-10-31",
+              "type": "string"
+            },
+            {
+              "id": "5c0a1d2e-0000-4000-8000-000000000106",
+              "name": "saldo_inicial_banco",
+              "value": 48250,
+              "type": "number"
+            },
+            {
+              "id": "5c0a1d2e-0000-4000-8000-000000000107",
+              "name": "saldo_inicial_libros",
+              "value": 48250,
+              "type": "number"
+            },
+            {
+              "id": "5c0a1d2e-0000-4000-8000-000000000108",
+              "name": "tolerancia_dias",
+              "value": 3,
+              "type": "number"
+            },
+            {
+              "id": "5c0a1d2e-0000-4000-8000-000000000109",
+              "name": "tolerancia_dias_referencia",
+              "value": 15,
+              "type": "number"
+            },
+            {
+              "id": "5c0a1d2e-0000-4000-8000-000000000110",
+              "name": "tolerancia_monto_pct",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "5c0a1d2e-0000-4000-8000-000000000111",
+              "name": "fechas_con_barras",
+              "value": "MM/DD/YYYY",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "5c0a1d2e-0000-4000-8000-000000000003",
+      "name": "Leer CSV del banco y de QuickBooks",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "fileSelector": "={{ $('Parámetros').first().json.carpeta }}/data/{banco,quickbooks}.csv",
+        "options": {}
+      }
+    },
+    {
+      "id": "5c0a1d2e-0000-4000-8000-000000000004",
+      "name": "Extraer filas del CSV",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "operation": "csv",
+        "binaryPropertyName": "data",
+        "options": {}
+      }
+    },
+    {
+      "id": "5c0a1d2e-0000-4000-8000-000000000005",
+      "name": "Conciliar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// =============================================================================\n// Nodo «Conciliar» — n8n Code node (JavaScript), modo «Run Once for All Items».\n//\n// Entrada : las filas de data/banco.csv y data/quickbooks.csv, ya convertidas en\n//           items por el nodo «Extract From File». Cada fila se reconoce por sus\n//           columnas: el banco trae `fecha/monto`; QuickBooks trae `Date/Amount`.\n// Salida  : UN solo item { resumen, detalle } que usan los nodos siguientes.\n//\n// Todo el dinero se maneja en CENTAVOS ENTEROS (8400.00 -> 840000) para que\n// 0.1 + 0.2 nunca dé 0.30000000000000004 en un reporte contable.\n//\n// Este archivo es la copia legible del código que va dentro del flujo\n// (workflow/conciliacion_bancaria.json). Si lo cambias, vuelve a armar el JSON\n// con:  node scripts/armar_workflow.mjs\n// =============================================================================\n\nconst P = $('Parámetros').first().json;\nconst TOL_DIAS = Number(P.tolerancia_dias ?? 3);                 // ventana del paso 1\nconst TOL_DIAS_REF = Number(P.tolerancia_dias_referencia ?? 15); // cheques que tardan en cobrarse\nconst TOL_MONTO_PCT = Number(P.tolerancia_monto_pct ?? 10);      // paso 4: monto parecido\nconst MIN_SIMILITUD = 0.5;                                       // paso 4: nombre parecido\nconst FECHAS_CON_BARRAS = String(P.fechas_con_barras || 'MM/DD/YYYY');\n\n// ---------- 1. Utilidades ----------------------------------------------------\nconst quitarTildes = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '');\nconst normalizar = (s) =>\n  quitarTildes(s).toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\\s+/g, ' ').trim();\nconst compacto = (s) => normalizar(s).replace(/ /g, '');\n\n// \"1,234.56\" | \"-1234.56\" | \"$1,234.56\" | \"(1,234.56)\" -> centavos enteros, o null\nfunction aCentavos(valor) {\n  let s = String(valor ?? '').trim();\n  if (!s) return null;\n  let negativo = false;\n  if (/^\\(.*\\)$/.test(s)) { negativo = true; s = s.slice(1, -1); }\n  s = s.replace(/[−–]/g, '-').replace(/[$\\s,]/g, '');\n  if (s.startsWith('-')) { negativo = !negativo; s = s.slice(1); }\n  if (!/^\\d+(\\.\\d+)?$/.test(s)) return null;\n  const c = Math.round(parseFloat(s) * 100);\n  return negativo ? -c : c;\n}\n\n// \"2026-10-08\" | \"10/08/2026\" -> número de día (días desde 1970), o null\nfunction aDia(valor) {\n  const s = String(valor ?? '').trim();\n  let y, m, d, r;\n  if ((r = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/))) {\n    [y, m, d] = [r[1], r[2], r[3]];\n  } else if ((r = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{2}|\\d{4})$/))) {\n    if (FECHAS_CON_BARRAS === 'DD/MM/YYYY') { d = r[1]; m = r[2]; } else { m = r[1]; d = r[2]; }\n    y = r[3].length === 2 ? '20' + r[3] : r[3];\n  } else {\n    return null;\n  }\n  const t = Date.UTC(+y, +m - 1, +d);\n  const f = new Date(t);\n  if (f.getUTCMonth() !== +m - 1 || f.getUTCDate() !== +d) return null; // 31/02 no existe\n  return Math.round(t / 86400000);\n}\nconst isoDe = (dia) => (dia === null || dia === undefined ? '' : new Date(dia * 86400000).toISOString().slice(0, 10));\nconst dinero = (c) => (c === null || c === undefined ? '' : (c / 100).toFixed(2));\nconst aNumero = (c) => Math.round(c) / 100;\n\n// ---------- 2. Leer y separar las filas --------------------------------------\nconst banco = [];\nconst libros = [];\nconst ignoradas = [];\n\nfor (const item of $input.all()) {\n  const fila = {};\n  for (const [k, v] of Object.entries(item.json)) {\n    fila[quitarTildes(k).trim().toLowerCase()] = typeof v === 'string' ? v.trim() : v;\n  }\n  if ('fecha' in fila || 'monto' in fila) {\n    const dia = aDia(fila.fecha);\n    const centavos = aCentavos(fila.monto);\n    if (dia === null || centavos === null) { ignoradas.push({ origen: 'banco', fila }); continue; }\n    banco.push({\n      origen: 'banco', idx: banco.length, dia, centavos,\n      descripcion: String(fila.descripcion ?? ''), referencia: String(fila.referencia ?? ''),\n    });\n  } else if ('date' in fila || 'amount' in fila) {\n    // Un export real de QuickBooks trae títulos arriba y filas «Total» abajo:\n    // cualquier fila sin fecha o sin monto válidos se ignora y se cuenta.\n    const dia = aDia(fila.date);\n    const centavos = aCentavos(fila.amount);\n    if (dia === null || centavos === null) { ignoradas.push({ origen: 'libros', fila }); continue; }\n    libros.push({\n      origen: 'libros', idx: libros.length, dia, centavos,\n      tipo: String(fila['transaction type'] ?? ''), num: String(fila.num ?? ''),\n      // Según el reporte, QuickBooks llama a la nota «Memo» o «Memo/Description».\n      nombre: String(fila.name ?? ''), memo: String(fila.memo ?? fila['memo/description'] ?? fila.description ?? ''),\n    });\n  } else {\n    ignoradas.push({ origen: 'desconocido', fila });\n  }\n}\n\nif (!banco.length || !libros.length) {\n  throw new Error(\n    `No hay datos para conciliar: ${banco.length} movimientos del banco y ${libros.length} de QuickBooks. ` +\n    'Revisa que banco.csv tenga las columnas fecha,descripcion,referencia,monto y que ' +\n    'quickbooks.csv tenga Date,Transaction Type,Num,Name,Memo,Amount.'\n  );\n}\n\n// ---------- 3. Criterios para comparar un movimiento del banco con uno de libros\nconst VACIAS = new Set(['DE', 'DEL', 'LA', 'LAS', 'LOS', 'EL', 'SA', 'LLC', 'INC', 'DEMO', 'CIA', 'THE', 'AND']);\nconst palabras = (s) => normalizar(s).split(' ').filter((w) => w.length >= 3 && !VACIAS.has(w));\n\n// Qué fracción del «Name» de QuickBooks aparece en el texto del banco (0 a 1).\nfunction similitudNombre(b, l) {\n  const nombre = palabras(l.nombre);\n  if (!nombre.length) return 0;\n  const texto = new Set(palabras(`${b.descripcion} ${b.referencia}`));\n  return nombre.filter((w) => texto.has(w)).length / nombre.length;\n}\n\n// ¿El «Num» de QuickBooks (número de cheque, etc.) es la referencia del banco?\nfunction mismaReferencia(b, l) {\n  const num = compacto(l.num);\n  if (!num) return false;\n  if (compacto(b.referencia) === num) return true;\n  return /^\\d{3,}$/.test(num) && normalizar(b.descripcion).split(' ').includes(num);\n}\n\nconst dias = (b, l) => Math.abs(b.dia - l.dia);\nconst mismoSigno = (b, l) => Math.sign(b.centavos) === Math.sign(l.centavos);\n\n// ---------- 4. Emparejar ------------------------------------------------------\nconst usadoB = new Set();\nconst usadoL = new Set();\nconst parejas = []; // { b, l, categoria, metodo }\n\n// Recorre los candidatos del mejor al peor y toma cada uno si los dos lados\n// siguen libres. Así una misma fila nunca se usa dos veces.\nfunction tomar(candidatos, comparar, categoria, metodo) {\n  candidatos.sort(comparar);\n  for (const c of candidatos) {\n    if (usadoB.has(c.b.idx) || usadoL.has(c.l.idx)) continue;\n    usadoB.add(c.b.idx);\n    usadoL.add(c.l.idx);\n    parejas.push({ b: c.b, l: c.l, categoria, metodo: typeof metodo === 'function' ? metodo(c) : metodo });\n  }\n}\nconst libresB = () => banco.filter((b) => !usadoB.has(b.idx));\nconst libresL = () => libros.filter((l) => !usadoL.has(l.idx));\n\n// Paso 1 — monto exacto y fecha dentro de ±TOL_DIAS. Ante empate gana la fecha\n// más cercana; luego la referencia y el nombre. Índice por monto: no compara\n// todo contra todo, así aguanta miles de movimientos.\n{\n  const porMonto = new Map();\n  for (const l of libros) {\n    if (!porMonto.has(l.centavos)) porMonto.set(l.centavos, []);\n    porMonto.get(l.centavos).push(l);\n  }\n  const cand = [];\n  for (const b of banco) {\n    for (const l of porMonto.get(b.centavos) || []) {\n      const d = dias(b, l);\n      if (d <= TOL_DIAS) cand.push({ b, l, d, ref: mismaReferencia(b, l) ? 1 : 0, sim: similitudNombre(b, l) });\n    }\n  }\n  tomar(\n    cand,\n    (x, y) => x.d - y.d || y.ref - x.ref || y.sim - x.sim || x.b.idx - y.b.idx || x.l.idx - y.l.idx,\n    'Conciliado',\n    (c) => (c.d === 0 ? 'Monto exacto, misma fecha' : `Monto exacto, fecha corrida ${c.d} día(s)`)\n  );\n}\n\n// Paso 2a — monto exacto + misma referencia, aunque la fecha se salga de la\n// ventana (el cheque que el proveedor cobró una semana después).\n{\n  const cand = [];\n  for (const b of libresB()) for (const l of libresL()) {\n    if (b.centavos === l.centavos && mismaReferencia(b, l) && dias(b, l) <= TOL_DIAS_REF) cand.push({ b, l, d: dias(b, l) });\n  }\n  tomar(cand, (x, y) => x.d - y.d, 'Conciliado', (c) => `Monto exacto + misma referencia (fecha corrida ${c.d} días)`);\n}\n\n// Paso 2b — misma referencia pero monto distinto: es el mismo movimiento,\n// digitado con otro valor.\n{\n  const cand = [];\n  for (const b of libresB()) for (const l of libresL()) {\n    if (mismoSigno(b, l) && mismaReferencia(b, l) && dias(b, l) <= TOL_DIAS_REF) cand.push({ b, l, d: dias(b, l) });\n  }\n  tomar(cand, (x, y) => x.d - y.d, 'Diferencia de monto', 'Misma referencia, monto distinto');\n}\n\n// Paso 3 — posibles duplicados: una fila sin pareja que es gemela de otra del\n// mismo lado (mismo monto, misma fecha ±1 día, mismo nombre/memo o misma\n// descripción). Se marca antes del paso 4 para que un duplicado no se\n// «empareje» por parecido con otro movimiento.\nconst duplicados = []; // { fila, gemela }\n{\n  const firmaL = (l) => `${compacto(l.nombre)}|${compacto(l.memo)}|${compacto(l.num)}`;\n  for (const l of libresL()) {\n    const gemela = libros.find((t) => t.idx !== l.idx && t.centavos === l.centavos &&\n      Math.abs(t.dia - l.dia) <= 1 && firmaL(t) === firmaL(l) && (usadoL.has(t.idx) || t.idx < l.idx));\n    if (gemela) { usadoL.add(l.idx); duplicados.push({ fila: l, gemela }); }\n  }\n  const firmaB = (b) => compacto(b.descripcion);\n  for (const b of libresB()) {\n    const gemela = banco.find((t) => t.idx !== b.idx && t.centavos === b.centavos &&\n      Math.abs(t.dia - b.dia) <= 1 && firmaB(t) === firmaB(b) && (usadoB.has(t.idx) || t.idx < b.idx));\n    if (gemela) { usadoB.add(b.idx); duplicados.push({ fila: b, gemela }); }\n  }\n}\n\n// Paso 4 — mismo nombre (el «Name» de QuickBooks aparece en el texto del\n// banco), fecha dentro de la ventana y monto parecido: diferencia de monto.\n{\n  const cand = [];\n  for (const b of libresB()) for (const l of libresL()) {\n    if (!mismoSigno(b, l) || dias(b, l) > TOL_DIAS) continue;\n    const sim = similitudNombre(b, l);\n    const dif = Math.abs(b.centavos - l.centavos);\n    const tope = (TOL_MONTO_PCT / 100) * Math.max(Math.abs(b.centavos), Math.abs(l.centavos));\n    if (sim >= MIN_SIMILITUD && dif <= tope) cand.push({ b, l, sim, dif, d: dias(b, l) });\n  }\n  tomar(cand, (x, y) => y.sim - x.sim || x.dif - y.dif || x.d - y.d, 'Diferencia de monto', 'Mismo nombre y fecha, monto distinto');\n}\n\n// ---------- 5. Armar el detalle ----------------------------------------------\nconst corte = aDia(P.fecha_corte);\nconst esCheque = (l) => /check|cheque/i.test(l.tipo) || /^\\d{3,}$/.test(compacto(l.num));\n\nfunction subtipoDiferencia(dif) {\n  const a = Math.abs(dif);\n  if (a % 9 === 0) return 'Posible trasposición de dígitos (la diferencia es divisible entre 9)';\n  if (a < 100) return 'Diferencia de centavos';\n  return 'Monto distinto';\n}\n\nfunction accionSoloBanco(b) {\n  const t = normalizar(b.descripcion);\n  if (b.centavos > 0 && /INTERES/.test(t)) return 'Registrar en QuickBooks el ingreso por intereses.';\n  if (/COMISION|CARGO|FEE|CUOTA|MANEJO/.test(t)) return 'Registrar en QuickBooks el gasto bancario (comisión).';\n  return b.centavos > 0\n    ? 'Depósito que no está en libros: identificar al cliente y registrarlo.'\n    : 'Cargo que no está en libros: identificar el gasto y registrarlo.';\n}\n\nfunction accionSoloLibros(l) {\n  const atraso = corte === null ? null : corte - l.dia;\n  if (l.centavos < 0 && esCheque(l)) {\n    return atraso !== null && atraso > 30\n      ? `Cheque girado hace ${atraso} días y aún sin cobrar: confirmar con el proveedor.`\n      : 'Cheque en tránsito: girado pero aún no cobrado. Debe aparecer en el próximo extracto.';\n  }\n  if (l.centavos > 0) {\n    return atraso !== null && atraso > 5\n      ? `Depósito registrado hace ${atraso} días que no llegó al banco: revisar.`\n      : 'Depósito en tránsito: registrado al cierre, debe aparecer en el próximo extracto.';\n  }\n  return 'Pago registrado en libros que no salió del banco: verificar si se hizo.';\n}\n\nconst vacio = {\n  fecha_banco: '', descripcion_banco: '', referencia_banco: '', monto_banco: '',\n  fecha_libros: '', tipo_libros: '', num_libros: '', nombre_libros: '', memo_libros: '', monto_libros: '',\n};\nconst ladoB = (b) => ({ fecha_banco: isoDe(b.dia), descripcion_banco: b.descripcion, referencia_banco: b.referencia, monto_banco: dinero(b.centavos) });\nconst ladoL = (l) => ({\n  fecha_libros: isoDe(l.dia), tipo_libros: l.tipo, num_libros: l.num, nombre_libros: l.nombre,\n  memo_libros: l.memo, monto_libros: dinero(l.centavos),\n});\nconst fila = (categoria, subtipo, metodo, b, l, extra) => ({\n  categoria, subtipo, metodo, ...vacio, ...(b ? ladoB(b) : {}), ...(l ? ladoL(l) : {}),\n  diferencia: '', dias_desfase: '', accion_sugerida: '', ...extra,\n});\n\nconst detalle = [];\nfor (const p of parejas) {\n  const dif = p.b.centavos - p.l.centavos;\n  const d = dias(p.b, p.l);\n  if (p.categoria === 'Conciliado') {\n    detalle.push(fila('Conciliado', d === 0 ? 'Misma fecha' : 'Fecha corrida', p.metodo, p.b, p.l, {\n      diferencia: '0.00', dias_desfase: String(d), accion_sugerida: 'Ninguna.',\n    }));\n  } else {\n    detalle.push(fila('Diferencia de monto', subtipoDiferencia(dif), p.metodo, p.b, p.l, {\n      diferencia: dinero(dif), dias_desfase: String(d),\n      accion_sugerida: `Corregir en QuickBooks: el banco muestra ${dinero(p.b.centavos)} y los libros ${dinero(p.l.centavos)} (diferencia ${dinero(dif)}).`,\n    }));\n  }\n}\nfor (const { fila: x, gemela } of duplicados) {\n  const enLibros = x.origen === 'libros';\n  const queGemela = enLibros ? `${isoDe(gemela.dia)} ${gemela.nombre} ${dinero(gemela.centavos)}` : `${isoDe(gemela.dia)} ${gemela.descripcion} ${dinero(gemela.centavos)}`;\n  detalle.push(fila('Posible duplicado', enLibros ? 'Duplicado en libros' : 'Duplicado en el banco',\n    `Gemela de: ${queGemela}`, enLibros ? null : x, enLibros ? x : null, {\n      diferencia: dinero(-x.centavos),\n      accion_sugerida: enLibros\n        ? 'Verificar y anular en QuickBooks el registro repetido (el banco lo muestra una sola vez).'\n        : 'El banco cobró dos veces lo mismo: reclamar el reverso al banco.',\n    }));\n}\nfor (const b of libresB()) {\n  detalle.push(fila('Solo en banco', b.centavos > 0 ? 'Abono no registrado' : 'Cargo no registrado',\n    'Sin pareja en libros', b, null, { diferencia: dinero(b.centavos), accion_sugerida: accionSoloBanco(b) }));\n}\nfor (const l of libresL()) {\n  const sub = l.centavos < 0 && esCheque(l) ? 'Cheque en tránsito' : l.centavos > 0 ? 'Depósito en tránsito' : 'Pago no reflejado';\n  detalle.push(fila('Solo en libros', sub, 'Sin pareja en el banco', null, l,\n    { diferencia: dinero(-l.centavos), accion_sugerida: accionSoloLibros(l) }));\n}\n\nconst ORDEN = ['Diferencia de monto', 'Posible duplicado', 'Solo en banco', 'Solo en libros', 'Conciliado'];\nconst fechaDe = (r) => r.fecha_banco || r.fecha_libros;\ndetalle.sort((x, y) => ORDEN.indexOf(x.categoria) - ORDEN.indexOf(y.categoria) || fechaDe(x).localeCompare(fechaDe(y)));\n\n// ---------- 6. Totales y conciliación de saldos --------------------------------\nconst suma = (arr) => arr.reduce((a, x) => a + x, 0);\nconst saldoIniB = aCentavos(P.saldo_inicial_banco) ?? 0;\nconst saldoIniL = aCentavos(P.saldo_inicial_libros) ?? 0;\nconst saldoFinB = saldoIniB + suma(banco.map((b) => b.centavos));\nconst saldoFinL = saldoIniL + suma(libros.map((l) => l.centavos));\n\nconst soloL = libresL();\nconst soloB = libresB();\nconst dupL = duplicados.filter((x) => x.fila.origen === 'libros').map((x) => x.fila);\nconst dupB = duplicados.filter((x) => x.fila.origen === 'banco').map((x) => x.fila);\nconst difs = parejas.filter((p) => p.categoria === 'Diferencia de monto');\nconst conc = parejas.filter((p) => p.categoria === 'Conciliado');\n\nconst depTransito = suma(soloL.filter((l) => l.centavos > 0).map((l) => l.centavos));\nconst chqTransito = suma(soloL.filter((l) => l.centavos < 0).map((l) => l.centavos));\nconst reversoDupB = -suma(dupB.map((b) => b.centavos));\nconst saldoAjB = saldoFinB + depTransito + chqTransito + reversoDupB;\n\nconst abonosNoReg = suma(soloB.filter((b) => b.centavos > 0).map((b) => b.centavos));\nconst cargosNoReg = suma(soloB.filter((b) => b.centavos < 0).map((b) => b.centavos));\nconst correcciones = suma(difs.map((p) => p.b.centavos - p.l.centavos));\nconst reversoDupL = -suma(dupL.map((l) => l.centavos));\nconst saldoAjL = saldoFinL + abonosNoReg + cargosNoReg + correcciones + reversoDupL;\n\nconst contar = (cat) => detalle.filter((r) => r.categoria === cat).length;\nconst resumen = {\n  empresa: P.empresa, cuenta: P.cuenta, periodo: P.periodo, fecha_corte: isoDe(corte),\n  generado: new Date().toISOString(),\n  ejecucion_n8n: $execution.id,\n  movimientos_banco: banco.length,\n  movimientos_libros: libros.length,\n  filas_ignoradas: ignoradas.length,\n  conteo: {\n    conciliado: contar('Conciliado'),\n    conciliado_misma_fecha: conc.filter((p) => dias(p.b, p.l) === 0).length,\n    conciliado_fecha_corrida: conc.filter((p) => dias(p.b, p.l) > 0).length,\n    conciliado_por_referencia: conc.filter((p) => p.metodo.startsWith('Monto exacto + misma referencia')).length,\n    diferencia_de_monto: contar('Diferencia de monto'),\n    solo_en_banco: contar('Solo en banco'),\n    solo_en_libros: contar('Solo en libros'),\n    posible_duplicado: contar('Posible duplicado'),\n  },\n  saldos: {\n    saldo_inicial_banco: aNumero(saldoIniB),\n    saldo_inicial_libros: aNumero(saldoIniL),\n    saldo_final_banco: aNumero(saldoFinB),\n    depositos_en_transito: aNumero(depTransito),\n    cheques_en_transito: aNumero(chqTransito),\n    reverso_duplicados_banco: aNumero(reversoDupB),\n    saldo_banco_ajustado: aNumero(saldoAjB),\n    saldo_final_libros: aNumero(saldoFinL),\n    abonos_no_registrados: aNumero(abonosNoReg),\n    cargos_no_registrados: aNumero(cargosNoReg),\n    correcciones_de_monto: aNumero(correcciones),\n    reverso_duplicados_libros: aNumero(reversoDupL),\n    saldo_libros_ajustado: aNumero(saldoAjL),\n    saldo_conciliado: aNumero(saldoAjB),\n    diferencia_sin_explicar: aNumero(saldoAjB - saldoAjL),\n  },\n  cuadra: saldoAjB === saldoAjL,\n};\n\nreturn [{ json: { resumen, detalle } }];\n"
+      }
+    },
+    {
+      "id": "5c0a1d2e-0000-4000-8000-000000000006",
+      "name": "Separar detalle en filas",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        180
+      ],
+      "parameters": {
+        "fieldToSplitOut": "detalle",
+        "options": {}
+      }
+    },
+    {
+      "id": "5c0a1d2e-0000-4000-8000-000000000007",
+      "name": "Detalle a CSV",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        180
+      ],
+      "parameters": {
+        "operation": "csv",
+        "options": {
+          "fileName": "reporte_conciliacion.csv"
+        }
+      }
+    },
+    {
+      "id": "5c0a1d2e-0000-4000-8000-000000000008",
+      "name": "Guardar reporte CSV",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        1540,
+        180
+      ],
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $('Parámetros').first().json.carpeta }}/output/reporte_conciliacion.csv",
+        "dataPropertyName": "data",
+        "options": {}
+      }
+    },
+    {
+      "id": "5c0a1d2e-0000-4000-8000-000000000009",
+      "name": "Armar reporte HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        420
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// =============================================================================\n// Nodo «Armar reporte HTML» — n8n Code node (JavaScript), «Run Once for All Items».\n//\n// Entrada : el item { resumen, detalle } que sale del nodo «Conciliar».\n// Salida  : UN item con el campo `html` (la página completa, sin dependencias\n//           externas: se abre sin internet y se imprime bien en PDF).\n//\n// Copia legible del código que va dentro de workflow/conciliacion_bancaria.json.\n// Si lo cambias, vuelve a armar el JSON con:  node scripts/armar_workflow.mjs\n// =============================================================================\n\nconst { resumen: R, detalle } = $input.first().json;\nconst S = R.saldos;\nconst C = R.conteo;\n\n// Todo texto que viene de los CSV se escapa: un memo con «<script>» se muestra\n// como texto, no se ejecuta.\nconst esc = (s) => String(s ?? '').replace(/[&<>\"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[ch]));\n\n// 1234.5 -> \"$1,234.50\"; -45 -> \"−$45.00\"\nfunction dinero(v) {\n  if (v === '' || v === null || v === undefined) return '';\n  const c = Math.round(Number(v) * 100);\n  const abs = Math.abs(c);\n  const entero = Math.floor(abs / 100).toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',');\n  return `${c < 0 ? '−' : ''}$${entero}.${String(abs % 100).padStart(2, '0')}`;\n}\nconst celdaDinero = (v) => `<td class=\"num${Number(v) < 0 ? ' neg' : ''}\">${dinero(v)}</td>`;\n\nconst SECCIONES = [\n  { cat: 'Diferencia de monto', clase: 'amb', explica: 'El mismo movimiento aparece en los dos lados pero con distinto valor. Casi siempre es un error al digitar en libros.',\n    cols: [['fecha_banco', 'Fecha banco'], ['descripcion_banco', 'Banco'], ['monto_banco', 'Monto banco', 1], ['nombre_libros', 'QuickBooks'], ['num_libros', 'Num'], ['monto_libros', 'Monto libros', 1], ['diferencia', 'Diferencia', 1], ['subtipo', 'Posible causa']] },\n  { cat: 'Posible duplicado', clase: 'roj', explica: 'Un registro que aparece dos veces en el mismo lado y una sola vez en el otro.',\n    cols: [['fecha_libros', 'Fecha libros'], ['tipo_libros', 'Tipo'], ['nombre_libros', 'Nombre'], ['memo_libros', 'Memo'], ['monto_libros', 'Monto libros', 1], ['fecha_banco', 'Fecha banco'], ['descripcion_banco', 'Banco'], ['monto_banco', 'Monto banco', 1], ['accion_sugerida', 'Qué hacer']] },\n  { cat: 'Solo en banco', clase: 'azu', explica: 'Salió del banco pero nadie lo registró en QuickBooks: comisiones, intereses, cargos automáticos.',\n    cols: [['fecha_banco', 'Fecha'], ['descripcion_banco', 'Descripción'], ['referencia_banco', 'Referencia'], ['monto_banco', 'Monto', 1], ['accion_sugerida', 'Qué hacer']] },\n  { cat: 'Solo en libros', clase: 'vio', explica: 'Está registrado en QuickBooks pero todavía no pasó por el banco: cheques sin cobrar y depósitos en camino.',\n    cols: [['fecha_libros', 'Fecha'], ['tipo_libros', 'Tipo'], ['num_libros', 'Num'], ['nombre_libros', 'Nombre'], ['memo_libros', 'Memo'], ['monto_libros', 'Monto', 1], ['accion_sugerida', 'Qué hacer']] },\n  { cat: 'Conciliado', clase: 'ver', explica: 'Coinciden en monto exacto. La columna «Días» muestra cuántos días tardó el banco en reflejarlo.',\n    cols: [['fecha_banco', 'Fecha banco'], ['fecha_libros', 'Fecha libros'], ['dias_desfase', 'Días'], ['descripcion_banco', 'Banco'], ['nombre_libros', 'QuickBooks'], ['monto_banco', 'Monto', 1], ['metodo', 'Cómo se empató']] },\n];\n\nfunction tabla(sec) {\n  const filas = detalle.filter((r) => r.categoria === sec.cat);\n  if (!filas.length) return `<p class=\"vacio\">Sin movimientos en esta categoría.</p>`;\n  const cab = sec.cols.map(([, t, n]) => `<th${n ? ' class=\"num\"' : ''}>${esc(t)}</th>`).join('');\n  const cuerpo = filas.map((r) => '<tr>' + sec.cols.map(([k, , n]) => (n ? celdaDinero(r[k]) : `<td>${esc(r[k])}</td>`)).join('') + '</tr>').join('');\n  return `<div class=\"tabla\"><table><thead><tr>${cab}</tr></thead><tbody>${cuerpo}</tbody></table></div>`;\n}\n\nconst tarjetas = [\n  ['ver', 'Conciliados', C.conciliado, `${C.conciliado_fecha_corrida} con fecha corrida · ${C.conciliado_por_referencia} por referencia`],\n  ['amb', 'Diferencias de monto', C.diferencia_de_monto, `ajuste neto ${dinero(S.correcciones_de_monto)}`],\n  ['azu', 'Solo en banco', C.solo_en_banco, `cargos ${dinero(S.cargos_no_registrados)} · abonos ${dinero(S.abonos_no_registrados)}`],\n  ['vio', 'Solo en libros', C.solo_en_libros, `cheques ${dinero(S.cheques_en_transito)} · depósitos ${dinero(S.depositos_en_transito)}`],\n  ['roj', 'Posibles duplicados', C.posible_duplicado, `reverso ${dinero(S.reverso_duplicados_libros + S.reverso_duplicados_banco)}`],\n].map(([cl, t, n, sub]) => `<div class=\"kpi ${cl}\"><div class=\"kpi-n\">${n}</div><div class=\"kpi-t\">${esc(t)}</div><div class=\"kpi-s\">${esc(sub)}</div></div>`).join('');\n\nconst linea = (txt, v, cl = '') => `<tr class=\"${cl}\"><td>${esc(txt)}</td>${celdaDinero(v)}</tr>`;\nconst fechaCorte = R.fecha_corte || '';\n\nconst html = `<!doctype html>\n<html lang=\"es\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Conciliación bancaria · ${esc(R.periodo)}</title>\n<style>\n  :root { --tinta:#1d2433; --suave:#5b6577; --linea:#e3e7ee; --fondo:#f6f7fb; --ver:#1f8a5b; --amb:#b7791f; --azu:#2b6cb0; --vio:#6b46c1; --roj:#c53030; }\n  * { box-sizing:border-box; }\n  body { margin:0; background:var(--fondo); color:var(--tinta); font:15px/1.5 -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; }\n  main { max-width:1120px; margin:0 auto; padding:32px 16px 48px; }\n  header h1 { margin:0 0 4px; font-size:26px; }\n  header p { margin:0; color:var(--suave); }\n  .estado { margin:20px 0; padding:14px 18px; border-radius:10px; font-weight:600; }\n  .estado.ok { background:#e6f4ec; color:var(--ver); border:1px solid #b9e0c9; }\n  .estado.mal { background:#fdecec; color:var(--roj); border:1px solid #f5c2c2; }\n  .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:12px; margin:16px 0 28px; }\n  .kpi { background:#fff; border:1px solid var(--linea); border-top:4px solid; border-radius:10px; padding:14px 16px; }\n  .kpi-n { font-size:30px; font-weight:700; line-height:1.1; }\n  .kpi-t { font-weight:600; }\n  .kpi-s { color:var(--suave); font-size:13px; }\n  .ver { border-top-color:var(--ver); } .amb { border-top-color:var(--amb); } .azu { border-top-color:var(--azu); } .vio { border-top-color:var(--vio); } .roj { border-top-color:var(--roj); }\n  h2 { font-size:19px; margin:32px 0 6px; }\n  h2 .chip { display:inline-block; min-width:28px; padding:0 8px; margin-left:6px; border-radius:99px; color:#fff; font-size:13px; text-align:center; vertical-align:middle; }\n  .chip.ver { background:var(--ver); } .chip.amb { background:var(--amb); } .chip.azu { background:var(--azu); } .chip.vio { background:var(--vio); } .chip.roj { background:var(--roj); }\n  .explica { margin:0 0 10px; color:var(--suave); }\n  .saldos { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; }\n  .caja { background:#fff; border:1px solid var(--linea); border-radius:10px; padding:6px 16px 10px; }\n  .caja h3 { font-size:15px; margin:10px 0 4px; }\n  .tabla { overflow-x:auto; background:#fff; border:1px solid var(--linea); border-radius:10px; }\n  table { width:100%; border-collapse:collapse; }\n  th, td { padding:8px 10px; text-align:left; border-bottom:1px solid var(--linea); vertical-align:top; }\n  th { font-size:12px; text-transform:uppercase; letter-spacing:.03em; color:var(--suave); background:#fafbfd; white-space:nowrap; }\n  tbody tr:last-child td { border-bottom:0; }\n  td.num, th.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }\n  td.neg { color:#a12b2b; }\n  .caja table td { border-bottom:1px dashed var(--linea); }\n  .caja tr.total td { font-weight:700; border-top:2px solid var(--tinta); border-bottom:0; }\n  .vacio { color:var(--suave); font-style:italic; }\n  footer { margin-top:36px; color:var(--suave); font-size:13px; }\n  @media print { body { background:#fff; } .kpi, .caja, .tabla { break-inside:avoid; } }\n</style>\n</head>\n<body>\n<main>\n  <header>\n    <h1>Conciliación bancaria · ${esc(R.periodo)}</h1>\n    <p>${esc(R.empresa)} · ${esc(R.cuenta)} · corte al ${esc(fechaCorte)}</p>\n    <p>${R.movimientos_banco} movimientos del banco contra ${R.movimientos_libros} de QuickBooks${R.filas_ignoradas ? ` · ${R.filas_ignoradas} filas ignoradas (títulos o totales)` : ''}</p>\n  </header>\n\n  <div class=\"estado ${R.cuadra ? 'ok' : 'mal'}\">\n    ${R.cuadra\n      ? `✔ La conciliación cuadra: saldo conciliado ${dinero(S.saldo_conciliado)} y diferencia sin explicar ${dinero(S.diferencia_sin_explicar)}.`\n      : `✖ Quedan ${dinero(S.diferencia_sin_explicar)} sin explicar: hay movimientos que el flujo no pudo clasificar.`}\n  </div>\n\n  <section class=\"kpis\">${tarjetas}</section>\n\n  <h2>Conciliación de saldos</h2>\n  <p class=\"explica\">Los dos lados parten de su propio saldo y, con las partidas encontradas, deben llegar al mismo número.</p>\n  <div class=\"saldos\">\n    <div class=\"caja\"><h3>Lado del banco</h3><table>\n      ${linea(`Saldo según extracto al ${fechaCorte}`, S.saldo_final_banco)}\n      ${linea('(+) Depósitos en tránsito', S.depositos_en_transito)}\n      ${linea('(−) Cheques en tránsito', S.cheques_en_transito)}\n      ${S.reverso_duplicados_banco ? linea('(+) Cobros duplicados del banco a reclamar', S.reverso_duplicados_banco) : ''}\n      ${linea('Saldo bancario ajustado', S.saldo_banco_ajustado, 'total')}\n    </table></div>\n    <div class=\"caja\"><h3>Lado de los libros (QuickBooks)</h3><table>\n      ${linea(`Saldo según libros al ${fechaCorte}`, S.saldo_final_libros)}\n      ${linea('(+) Abonos del banco sin registrar (intereses)', S.abonos_no_registrados)}\n      ${linea('(−) Cargos del banco sin registrar (comisiones)', S.cargos_no_registrados)}\n      ${linea('(±) Correcciones por diferencia de monto', S.correcciones_de_monto)}\n      ${linea('(+) Reverso de registros duplicados', S.reverso_duplicados_libros)}\n      ${linea('Saldo en libros ajustado', S.saldo_libros_ajustado, 'total')}\n    </table></div>\n  </div>\n\n  ${SECCIONES.map((sec) => `\n  <h2>${esc(sec.cat)}<span class=\"chip ${sec.clase}\">${detalle.filter((r) => r.categoria === sec.cat).length}</span></h2>\n  <p class=\"explica\">${esc(sec.explica)}</p>\n  ${tabla(sec)}`).join('')}\n\n  <footer>\n    Reporte generado automáticamente por un flujo de n8n (ejecución ${esc(R.ejecucion_n8n)}) el ${esc(R.generado.replace('T', ' ').slice(0, 19))} UTC.\n    Datos ficticios de demostración. Saldo inicial del banco ${dinero(S.saldo_inicial_banco)}; saldo inicial en libros ${dinero(S.saldo_inicial_libros)}.\n  </footer>\n</main>\n</body>\n</html>\n`;\n\nreturn [{ json: { html } }];\n"
+      }
+    },
+    {
+      "id": "5c0a1d2e-0000-4000-8000-000000000010",
+      "name": "HTML a archivo",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        420
+      ],
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "html",
+        "options": {
+          "fileName": "reporte_conciliacion.html"
+        }
+      }
+    },
+    {
+      "id": "5c0a1d2e-0000-4000-8000-000000000011",
+      "name": "Guardar reporte HTML",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        1540,
+        420
+      ],
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $('Parámetros').first().json.carpeta }}/output/reporte_conciliacion.html",
+        "dataPropertyName": "data",
+        "options": {}
+      }
+    },
+    {
+      "id": "5c0a1d2e-0000-4000-8000-000000000012",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -20
+      ],
+      "parameters": {
+        "width": 860,
+        "height": 260,
+        "color": 7,
+        "content": "## Conciliación bancaria automática (demo, datos ficticios)\nCompara el extracto del banco (`data/banco.csv`) contra el export de QuickBooks (`data/quickbooks.csv`).\n\n1. **Parámetros**: empresa, periodo, saldos iniciales y tolerancias. `carpeta` es la raíz de la demo (`.` = donde se arrancó n8n).\n2. **Conciliar**: monto exacto ±3 días → referencia → duplicados → nombre parecido con monto distinto → lo que sobra.\n3. Escribe `output/reporte_conciliacion.csv` (detalle) y `output/reporte_conciliacion.html` (resumen + tablas)."
+      }
+    }
+  ],
+  "connections": {
+    "Inicio manual": {
+      "main": [
+        [
+          {
+            "node": "Parámetros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parámetros": {
+      "main": [
+        [
+          {
+            "node": "Leer CSV del banco y de QuickBooks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer CSV del banco y de QuickBooks": {
+      "main": [
+        [
+          {
+            "node": "Extraer filas del CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer filas del CSV": {
+      "main": [
+        [
+          {
+            "node": "Conciliar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conciliar": {
+      "main": [
+        [
+          {
+            "node": "Separar detalle en filas",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Armar reporte HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar detalle en filas": {
+      "main": [
+        [
+          {
+            "node": "Detalle a CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detalle a CSV": {
+      "main": [
+        [
+          {
+            "node": "Guardar reporte CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar reporte HTML": {
+      "main": [
+        [
+          {
+            "node": "HTML a archivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML a archivo": {
+      "main": [
+        [
+          {
+            "node": "Guardar reporte HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

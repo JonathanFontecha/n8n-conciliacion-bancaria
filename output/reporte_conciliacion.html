@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conciliación bancaria · Octubre 2026</title>
+<style>
+  :root { --tinta:#1d2433; --suave:#5b6577; --linea:#e3e7ee; --fondo:#f6f7fb; --ver:#1f8a5b; --amb:#b7791f; --azu:#2b6cb0; --vio:#6b46c1; --roj:#c53030; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta); font:15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width:1120px; margin:0 auto; padding:32px 16px 48px; }
+  header h1 { margin:0 0 4px; font-size:26px; }
+  header p { margin:0; color:var(--suave); }
+  .estado { margin:20px 0; padding:14px 18px; border-radius:10px; font-weight:600; }
+  .estado.ok { background:#e6f4ec; color:var(--ver); border:1px solid #b9e0c9; }
+  .estado.mal { background:#fdecec; color:var(--roj); border:1px solid #f5c2c2; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:12px; margin:16px 0 28px; }
+  .kpi { background:#fff; border:1px solid var(--linea); border-top:4px solid; border-radius:10px; padding:14px 16px; }
+  .kpi-n { font-size:30px; font-weight:700; line-height:1.1; }
+  .kpi-t { font-weight:600; }
+  .kpi-s { color:var(--suave); font-size:13px; }
+  .ver { border-top-color:var(--ver); } .amb { border-top-color:var(--amb); } .azu { border-top-color:var(--azu); } .vio { border-top-color:var(--vio); } .roj { border-top-color:var(--roj); }
+  h2 { font-size:19px; margin:32px 0 6px; }
+  h2 .chip { display:inline-block; min-width:28px; padding:0 8px; margin-left:6px; border-radius:99px; color:#fff; font-size:13px; text-align:center; vertical-align:middle; }
+  .chip.ver { background:var(--ver); } .chip.amb { background:var(--amb); } .chip.azu { background:var(--azu); } .chip.vio { background:var(--vio); } .chip.roj { background:var(--roj); }
+  .explica { margin:0 0 10px; color:var(--suave); }
+  .saldos { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; }
+  .caja { background:#fff; border:1px solid var(--linea); border-radius:10px; padding:6px 16px 10px; }
+  .caja h3 { font-size:15px; margin:10px 0 4px; }
+  .tabla { overflow-x:auto; background:#fff; border:1px solid var(--linea); border-radius:10px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:8px 10px; text-align:left; border-bottom:1px solid var(--linea); vertical-align:top; }
+  th { font-size:12px; text-transform:uppercase; letter-spacing:.03em; color:var(--suave); background:#fafbfd; white-space:nowrap; }
+  tbody tr:last-child td { border-bottom:0; }
+  td.num, th.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  td.neg { color:#a12b2b; }
+  .caja table td { border-bottom:1px dashed var(--linea); }
+  .caja tr.total td { font-weight:700; border-top:2px solid var(--tinta); border-bottom:0; }
+  .vacio { color:var(--suave); font-style:italic; }
+  footer { margin-top:36px; color:var(--suave); font-size:13px; }
+  @media print { body { background:#fff; } .kpi, .caja, .tabla { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Conciliación bancaria · Octubre 2026</h1>
+    <p>Ejemplo Construcciones LLC · Cuenta corriente terminada en 2207 · Banco Ficticio · corte al 2026-10-31</p>
+    <p>40 movimientos del banco contra 40 de QuickBooks</p>
+  </header>
+
+  <div class="estado ok">
+    ✔ La conciliación cuadra: saldo conciliado $40,632.03 y diferencia sin explicar $0.00.
+  </div>
+
+  <section class="kpis"><div class="kpi ver"><div class="kpi-n">32</div><div class="kpi-t">Conciliados</div><div class="kpi-s">22 con fecha corrida · 1 por referencia</div></div><div class="kpi amb"><div class="kpi-n">4</div><div class="kpi-t">Diferencias de monto</div><div class="kpi-s">ajuste neto −$44.90</div></div><div class="kpi azu"><div class="kpi-n">4</div><div class="kpi-t">Solo en banco</div><div class="kpi-s">cargos −$108.00 · abonos $12.47</div></div><div class="kpi vio"><div class="kpi-n">3</div><div class="kpi-t">Solo en libros</div><div class="kpi-s">cheques −$2,515.00 · depósitos $3,150.00</div></div><div class="kpi roj"><div class="kpi-n">1</div><div class="kpi-t">Posibles duplicados</div><div class="kpi-s">reverso $428.90</div></div></section>
+
+  <h2>Conciliación de saldos</h2>
+  <p class="explica">Los dos lados parten de su propio saldo y, con las partidas encontradas, deben llegar al mismo número.</p>
+  <div class="saldos">
+    <div class="caja"><h3>Lado del banco</h3><table>
+      <tr class=""><td>Saldo según extracto al 2026-10-31</td><td class="num">$39,997.03</td></tr>
+      <tr class=""><td>(+) Depósitos en tránsito</td><td class="num">$3,150.00</td></tr>
+      <tr class=""><td>(−) Cheques en tránsito</td><td class="num neg">−$2,515.00</td></tr>
+      
+      <tr class="total"><td>Saldo bancario ajustado</td><td class="num">$40,632.03</td></tr>
+    </table></div>
+    <div class="caja"><h3>Lado de los libros (QuickBooks)</h3><table>
+      <tr class=""><td>Saldo según libros al 2026-10-31</td><td class="num">$40,343.56</td></tr>
+      <tr class=""><td>(+) Abonos del banco sin registrar (intereses)</td><td class="num">$12.47</td></tr>
+      <tr class=""><td>(−) Cargos del banco sin registrar (comisiones)</td><td class="num neg">−$108.00</td></tr>
+      <tr class=""><td>(±) Correcciones por diferencia de monto</td><td class="num neg">−$44.90</td></tr>
+      <tr class=""><td>(+) Reverso de registros duplicados</td><td class="num">$428.90</td></tr>
+      <tr class="total"><td>Saldo en libros ajustado</td><td class="num">$40,632.03</td></tr>
+    </table></div>
+  </div>
+
+  
+  <h2>Diferencia de monto<span class="chip amb">4</span></h2>
+  <p class="explica">El mismo movimiento aparece en los dos lados pero con distinto valor. Casi siempre es un error al digitar en libros.</p>
+  <div class="tabla"><table><thead><tr><th>Fecha banco</th><th>Banco</th><th class="num">Monto banco</th><th>QuickBooks</th><th>Num</th><th class="num">Monto libros</th><th class="num">Diferencia</th><th>Posible causa</th></tr></thead><tbody><tr><td>2026-10-08</td><td>DEPOSITO CLIENTE RESIDENCIAL LOS PINOS</td><td class="num">$4,560.00</td><td>Residencial Los Pinos</td><td></td><td class="num">$4,650.00</td><td class="num neg">−$90.00</td><td>Posible trasposición de dígitos (la diferencia es divisible entre 9)</td></tr><tr><td>2026-10-21</td><td>CHEQUE PAGADO 1047</td><td class="num neg">−$1,327.00</td><td>Concretos Andinos</td><td>1047</td><td class="num neg">−$1,372.00</td><td class="num">$45.00</td><td>Posible trasposición de dígitos (la diferencia es divisible entre 9)</td></tr><tr><td>2026-10-21</td><td>COMPRA TARJETA DEBITO SUMINISTROS PUNTO FIJO</td><td class="num neg">−$89.99</td><td>Suministros de Oficina Punto Fijo</td><td></td><td class="num neg">−$90.00</td><td class="num">$0.01</td><td>Diferencia de centavos</td></tr><tr><td>2026-10-24</td><td>DEBITO AUTOMATICO TELEFONIA CONECTA</td><td class="num neg">−$310.45</td><td>Telefonía Móvil Conecta</td><td></td><td class="num neg">−$310.54</td><td class="num">$0.09</td><td>Posible trasposición de dígitos (la diferencia es divisible entre 9)</td></tr></tbody></table></div>
+  <h2>Posible duplicado<span class="chip roj">1</span></h2>
+  <p class="explica">Un registro que aparece dos veces en el mismo lado y una sola vez en el otro.</p>
+  <div class="tabla"><table><thead><tr><th>Fecha libros</th><th>Tipo</th><th>Nombre</th><th>Memo</th><th class="num">Monto libros</th><th>Fecha banco</th><th>Banco</th><th class="num">Monto banco</th><th>Qué hacer</th></tr></thead><tbody><tr><td>2026-10-13</td><td>Expense</td><td>Ferretería La Escuadra</td><td>Tornillería y anclajes</td><td class="num neg">−$428.90</td><td></td><td></td><td class="num"></td><td>Verificar y anular en QuickBooks el registro repetido (el banco lo muestra una sola vez).</td></tr></tbody></table></div>
+  <h2>Solo en banco<span class="chip azu">4</span></h2>
+  <p class="explica">Salió del banco pero nadie lo registró en QuickBooks: comisiones, intereses, cargos automáticos.</p>
+  <div class="tabla"><table><thead><tr><th>Fecha</th><th>Descripción</th><th>Referencia</th><th class="num">Monto</th><th>Qué hacer</th></tr></thead><tbody><tr><td>2026-10-12</td><td>COMISION POR CHEQUERA NUEVA</td><td>FEE-1012</td><td class="num neg">−$48.00</td><td>Registrar en QuickBooks el gasto bancario (comisión).</td></tr><tr><td>2026-10-15</td><td>COMISION TRANSFERENCIA ENVIADA</td><td>FEE-50931</td><td class="num neg">−$25.00</td><td>Registrar en QuickBooks el gasto bancario (comisión).</td></tr><tr><td>2026-10-31</td><td>INTERESES GANADOS</td><td>INT-1031</td><td class="num">$12.47</td><td>Registrar en QuickBooks el ingreso por intereses.</td></tr><tr><td>2026-10-31</td><td>COMISION MANEJO DE CUENTA</td><td>FEE-1031</td><td class="num neg">−$35.00</td><td>Registrar en QuickBooks el gasto bancario (comisión).</td></tr></tbody></table></div>
+  <h2>Solo en libros<span class="chip vio">3</span></h2>
+  <p class="explica">Está registrado en QuickBooks pero todavía no pasó por el banco: cheques sin cobrar y depósitos en camino.</p>
+  <div class="tabla"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Num</th><th>Nombre</th><th>Memo</th><th class="num">Monto</th><th>Qué hacer</th></tr></thead><tbody><tr><td>2026-10-29</td><td>Check</td><td>1050</td><td>Pinturas Arcoíris</td><td>Pintura exterior obra Mirador</td><td class="num neg">−$1,875.00</td><td>Cheque en tránsito: girado pero aún no cobrado. Debe aparecer en el próximo extracto.</td></tr><tr><td>2026-10-30</td><td>Check</td><td>1051</td><td>Electricidad Volta</td><td>Materiales eléctricos</td><td class="num neg">−$640.00</td><td>Cheque en tránsito: girado pero aún no cobrado. Debe aparecer en el próximo extracto.</td></tr><tr><td>2026-10-31</td><td>Deposit</td><td></td><td>Local Comercial Avenida 5</td><td>Anticipo adecuación del local</td><td class="num">$3,150.00</td><td>Depósito en tránsito: registrado al cierre, debe aparecer en el próximo extracto.</td></tr></tbody></table></div>
+  <h2>Conciliado<span class="chip ver">32</span></h2>
+  <p class="explica">Coinciden en monto exacto. La columna «Días» muestra cuántos días tardó el banco en reflejarlo.</p>
+  <div class="tabla"><table><thead><tr><th>Fecha banco</th><th>Fecha libros</th><th>Días</th><th>Banco</th><th>QuickBooks</th><th class="num">Monto</th><th>Cómo se empató</th></tr></thead><tbody><tr><td>2026-10-01</td><td>2026-10-01</td><td>0</td><td>DEPOSITO EN SUCURSAL FAMILIA RIVERA</td><td>Familia Rivera</td><td class="num">$8,400.00</td><td>Monto exacto, misma fecha</td></tr><tr><td>2026-10-02</td><td>2026-10-02</td><td>0</td><td>TRANSFERENCIA A CTA AHORROS ****4471</td><td></td><td class="num neg">−$5,000.00</td><td>Monto exacto, misma fecha</td></tr><tr><td>2026-10-03</td><td>2026-10-02</td><td>1</td><td>COMPRA TARJETA DEBITO COMBUSTIBLES RUTA 9</td><td>Combustibles Ruta 9</td><td class="num neg">−$186.40</td><td>Monto exacto, fecha corrida 1 día(s)</td></tr><tr><td>2026-10-03</td><td>2026-10-01</td><td>2</td><td>CHEQUE PAGADO 1041</td><td>Inmobiliaria Sol Ficticia</td><td class="num neg">−$2,300.00</td><td>Monto exacto, fecha corrida 2 día(s)</td></tr><tr><td>2026-10-05</td><td>2026-10-05</td><td>0</td><td>DEPOSITO ACH OFICINAS MIRADOR</td><td>Oficinas Mirador</td><td class="num">$12,500.00</td><td>Monto exacto, misma fecha</td></tr><tr><td>2026-10-05</td><td>2026-10-04</td><td>1</td><td>COMPRA TARJETA DEBITO RESTAURANTE EL FOGON</td><td>Restaurante El Fogón Demo</td><td class="num neg">−$86.50</td><td>Monto exacto, fecha corrida 1 día(s)</td></tr><tr><td>2026-10-06</td><td>2026-10-03</td><td>3</td><td>CHEQUE PAGADO 1042</td><td>Concretos Andinos</td><td class="num neg">−$6,750.00</td><td>Monto exacto, fecha corrida 3 día(s)</td></tr><tr><td>2026-10-07</td><td>2026-10-07</td><td>0</td><td>DEBITO AUTOMATICO SEGUROS FICTICIOS</td><td>Seguros Ficticios S.A.</td><td class="num neg">−$742.18</td><td>Monto exacto, misma fecha</td></tr><tr><td>2026-10-08</td><td>2026-10-08</td><td>0</td><td>DEBITO AUTOMATICO SOFTWARE CONTABLE NUBE</td><td>Software Contable Nube Demo</td><td class="num neg">−$65.00</td><td>Monto exacto, misma fecha</td></tr><tr><td>2026-10-08</td><td>2026-10-06</td><td>2</td><td>CHEQUE PAGADO 1044</td><td>Ferretería La Escuadra</td><td class="num neg">−$2,315.60</td><td>Monto exacto, fecha corrida 2 día(s)</td></tr><tr><td>2026-10-09</td><td>2026-10-03</td><td>6</td><td>CHEQUE PAGADO 1043</td><td>Alquiler de Equipos Delta</td><td class="num neg">−$1,180.00</td><td>Monto exacto + misma referencia (fecha corrida 6 días)</td></tr><tr><td>2026-10-10</td><td>2026-10-09</td><td>1</td><td>COMPRA TARJETA DEBITO COMBUSTIBLES RUTA 9</td><td>Combustibles Ruta 9</td><td class="num neg">−$203.15</td><td>Monto exacto, fecha corrida 1 día(s)</td></tr><tr><td>2026-10-12</td><td>2026-10-11</td><td>1</td><td>COMPRA TARJETA DEBITO HERRAMIENTAS EL MARTILLO</td><td>Herramientas El Martillo</td><td class="num neg">−$389.99</td><td>Monto exacto, fecha corrida 1 día(s)</td></tr><tr><td>2026-10-13</td><td>2026-10-10</td><td>3</td><td>CHEQUE PAGADO 1045</td><td>Asesoría Contable y Tributaria Demo</td><td class="num neg">−$650.00</td><td>Monto exacto, fecha corrida 3 día(s)</td></tr><tr><td>2026-10-14</td><td>2026-10-13</td><td>1</td><td>COMPRA TARJETA DEBITO FERRETERIA LA ESCUADRA</td><td>Ferretería La Escuadra</td><td class="num neg">−$428.90</td><td>Monto exacto, fecha corrida 1 día(s)</td></tr><tr><td>2026-10-14</td><td>2026-10-13</td><td>1</td><td>DEPOSITO ACH LOCAL COMERCIAL AVENIDA 5</td><td>Local Comercial Avenida 5</td><td class="num">$5,500.00</td><td>Monto exacto, fecha corrida 1 día(s)</td></tr><tr><td>2026-10-15</td><td>2026-10-15</td><td>0</td><td>TRANSFERENCIA ENVIADA MADERAS DEL VALLE</td><td>Maderas del Valle Demo</td><td class="num neg">−$7,820.00</td><td>Monto exacto, misma fecha</td></tr><tr><td>2026-10-15</td><td>2026-10-15</td><td>0</td><td>PAGO NOMINA LOTE ACH</td><td></td><td class="num neg">−$9,840.00</td><td>Monto exacto, misma fecha</td></tr><tr><td>2026-10-16</td><td>2026-10-16</td><td>0</td><td>TRANSFERENCIA A CTA AHORROS ****4471</td><td></td><td class="num neg">−$5,000.00</td><td>Monto exacto, misma fecha</td></tr><tr><td>2026-10-16</td><td>2026-10-14</td><td>2</td><td>CHEQUE PAGADO 1046</td><td>Electricidad Volta</td><td class="num neg">−$3,200.00</td><td>Monto exacto, fecha corrida 2 día(s)</td></tr><tr><td>2026-10-19</td><td>2026-10-18</td><td>1</td><td>COMPRA TARJETA DEBITO COMBUSTIBLES RUTA 9</td><td>Combustibles Ruta 9</td><td class="num neg">−$212.80</td><td>Monto exacto, fecha corrida 1 día(s)</td></tr><tr><td>2026-10-19</td><td>2026-10-17</td><td>2</td><td>DEPOSITO MOVIL FAMILIA RIVERA</td><td>Familia Rivera</td><td class="num">$8,400.00</td><td>Monto exacto, fecha corrida 2 día(s)</td></tr><tr><td>2026-10-22</td><td>2026-10-20</td><td>2</td><td>COMPRA TARJETA DEBITO TALLER MECANICO SAN JORGE</td><td>Taller Mecánico San Jorge Demo</td><td class="num neg">−$535.60</td><td>Monto exacto, fecha corrida 2 día(s)</td></tr><tr><td>2026-10-23</td><td>2026-10-22</td><td>1</td><td>DEPOSITO ACH OFICINAS MIRADOR</td><td>Oficinas Mirador</td><td class="num">$6,275.00</td><td>Monto exacto, fecha corrida 1 día(s)</td></tr><tr><td>2026-10-24</td><td>2026-10-22</td><td>2</td><td>DEBITO ACH RECOLECCION ESCOMBROS LIMPIO</td><td>Recolección de Escombros Limpio</td><td class="num neg">−$450.00</td><td>Monto exacto, fecha corrida 2 día(s)</td></tr><tr><td>2026-10-26</td><td>2026-10-23</td><td>3</td><td>CHEQUE PAGADO 1048</td><td>Alquiler de Equipos Delta</td><td class="num neg">−$2,640.00</td><td>Monto exacto, fecha corrida 3 día(s)</td></tr><tr><td>2026-10-27</td><td>2026-10-26</td><td>1</td><td>COMPRA TARJETA DEBITO COMBUSTIBLES RUTA 9</td><td>Combustibles Ruta 9</td><td class="num neg">−$221.30</td><td>Monto exacto, fecha corrida 1 día(s)</td></tr><tr><td>2026-10-27</td><td>2026-10-25</td><td>2</td><td>DEBITO AUTOMATICO AGUA Y ENERGIA MUNICIPAL</td><td>Agua y Energía Municipal Demo</td><td class="num neg">−$268.33</td><td>Monto exacto, fecha corrida 2 día(s)</td></tr><tr><td>2026-10-28</td><td>2026-10-28</td><td>0</td><td>DEPOSITO CLIENTE RESIDENCIAL LOS PINOS</td><td>Residencial Los Pinos</td><td class="num">$9,800.00</td><td>Monto exacto, misma fecha</td></tr><tr><td>2026-10-29</td><td>2026-10-27</td><td>2</td><td>CHEQUE PAGADO 1049</td><td>Ferretería La Escuadra</td><td class="num neg">−$1,964.25</td><td>Monto exacto, fecha corrida 2 día(s)</td></tr><tr><td>2026-10-30</td><td>2026-10-30</td><td>0</td><td>PAGO NOMINA LOTE ACH</td><td></td><td class="num neg">−$9,915.00</td><td>Monto exacto, misma fecha</td></tr><tr><td>2026-10-30</td><td>2026-10-29</td><td>1</td><td>DEPOSITO REEMBOLSO ALQUILER DE EQUIPOS DELTA</td><td>Alquiler de Equipos Delta</td><td class="num">$500.00</td><td>Monto exacto, fecha corrida 1 día(s)</td></tr></tbody></table></div>
+
+  <footer>
+    Reporte generado automáticamente por un flujo de n8n (ejecución 3) el 2026-11-17 21:11:12 UTC.
+    Datos ficticios de demostración. Saldo inicial del banco $48,250.00; saldo inicial en libros $48,250.00.
+  </footer>
+</main>
+</body>
+</html>
